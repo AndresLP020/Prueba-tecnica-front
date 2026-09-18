@@ -18,6 +18,7 @@ function safeEqual(a: string, b: string) {
 
 export function createAdminCookie(password: string) {
   const env = getServerEnv();
+  if (!env.ADMIN_PASSWORD || !env.ADMIN_SECRET) return null;
   if (!safeEqual(password, env.ADMIN_PASSWORD)) return null;
   const exp = Date.now() + MAX_AGE_MS;
   const payload = `v1.${exp}`;
@@ -31,6 +32,7 @@ export function createAdminCookie(password: string) {
 export function verifyAdminToken(token: string | undefined | null) {
   if (!token) return false;
   const env = getServerEnv();
+  if (!env.ADMIN_SECRET) return false;
   const lastDot = token.lastIndexOf(".");
   if (lastDot < 0) return false;
   const payload = token.slice(0, lastDot);

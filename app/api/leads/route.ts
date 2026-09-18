@@ -88,7 +88,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const env = getServerEnv();
+  let env;
+  try {
+    env = getServerEnv();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Faltan variables de entorno";
+    return json({ ok: false, error: message }, 500);
+  }
+
   const payload = {
     ...parsed.data,
     calBaseUrl: env.CAL_BASE_URL,
@@ -116,11 +123,17 @@ export async function POST(req: Request) {
       emailSent: boolean;
     };
 
-    if (env.BACKEND_URL) {
+    const backendUrl = env.BACKEND_URL?.replace(/\/$/, "");
+    const backendReady =
+      Boolean(backendUrl) &&
+      /^https?:\/\//.test(backendUrl || "") &&
+      !/TU-SERVICIO|tu-app|example\.com/i.test(backendUrl || "");
+
+    if (backendReady && backendUrl) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 9_000);
       try {
-        const upstream = await fetch(`${env.BACKEND_URL.replace(/\/$/, "")}/api/leads`, {
+        const upstream = await fetch(`${backendUrl}/api/leads`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

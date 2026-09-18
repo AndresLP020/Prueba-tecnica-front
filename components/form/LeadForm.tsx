@@ -127,7 +127,7 @@ export function LeadForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...values, submissionId, startedAt, utm, website: values.website || "" }),
       });
-      const data = (await res.json()) as {
+      let data: {
         ok?: boolean;
         orbit?: string;
         bookingUrl?: string | null;
@@ -135,7 +135,18 @@ export function LeadForm() {
         pending?: boolean;
         error?: string;
         details?: { path: string; message: string }[];
-      };
+      } = {};
+      try {
+        data = (await res.json()) as typeof data;
+      } catch {
+        setScene({ launching: false });
+        setServerError(
+          res.status
+            ? `El servidor respondió ${res.status}. Revisa las variables de entorno en Vercel (MONGODB_URI).`
+            : "Sin enlace con el servidor. Revisa tu conexión.",
+        );
+        return;
+      }
       if (!res.ok) {
         setScene({ launching: false });
         if (data.details?.[0]) {
