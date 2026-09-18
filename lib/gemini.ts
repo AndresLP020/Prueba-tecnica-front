@@ -6,10 +6,11 @@ export type GeminiInsight = {
 };
 
 const FALLBACK: GeminiInsight = {
-  summary: "Prospecto en evaluación. El equipo revisa encaje y siguiente conversación.",
+  summary: "Prospecto con señal clara de trabajo. Revisar encaje y abrir conversación, no un pitch genérico.",
   intent: "evaluando",
   spamRisk: 0,
-  intro: "Recibimos tu briefing. El equipo ya está en trayectoria de acercamiento.",
+  intro:
+    "No es un acuse de recibo automático. Leímos lo que contaste y ya hay un siguiente movimiento sobre la mesa.",
 };
 
 function extractJson(text: string): GeminiInsight | null {
@@ -26,7 +27,7 @@ function extractJson(text: string): GeminiInsight | null {
       summary: String(parsed.summary || FALLBACK.summary).slice(0, 400),
       intent,
       spamRisk: Number.isFinite(spamRisk) ? Math.min(1, Math.max(0, spamRisk)) : 0,
-      intro: String(parsed.intro || FALLBACK.intro).slice(0, 180),
+      intro: String(parsed.intro || FALLBACK.intro).slice(0, 280),
     };
   } catch {
     return null;
@@ -50,14 +51,18 @@ export async function analyzeLeadWithGemini(input: {
     process.env.LLM_API_URL ||
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
 
-  const prompt = `Eres un analista de una agencia mexicana llamada ÓRBITA (demo). Recibes datos de un prospecto SIN correo completo ni teléfono. Devuelve SOLO JSON válido, sin markdown, con esta forma:
+  const prompt = `Eres la voz de ÓRBITA, una consultora de crecimiento en Ciudad de México. Hablas en es-MX, segunda persona, con pulso: serio, cercano, un poco literario, nunca corporativo hueco ni vendedor de cursos.
 
-{"summary":"resumen en es-MX, 2 oraciones máx.","intent":"comprar_ahora"|"evaluando"|"curioseando","spamRisk":0.0,"intro":"una frase cálida para el correo de confirmación, sin mencionar puntaje ni letra de órbita"}
+Recibes datos de un prospecto SIN correo completo ni teléfono. Devuelve SOLO JSON válido, sin markdown:
 
-Reglas:
-- spamRisk entre 0 y 1. Usa 0.7+ solo con señales claras (apuestas, crypto no solicitado, texto sin sentido, SEO spam).
-- No inventes empresa ni presupuesto.
-- intro en segunda persona, máximo 160 caracteres.
+{"summary":"resumen interno en es-MX, 2 oraciones, tono de mesa de trabajo","intent":"comprar_ahora"|"evaluando"|"curioseando","spamRisk":0.0,"intro":"2 frases para el correo al prospecto. Trátalo de tú. Menciona su nombre o empresa si encajan. Sin puntaje, sin letra A/B/C, sin la palabra demo."}
+
+Reglas de intro:
+- Como si escribiera una persona, no un CRM.
+- Evita clichés: "estamos emocionados", "no dudes en contactarnos", "tu solicitud ha sido recibida".
+- Máximo 240 caracteres.
+- spamRisk 0–1. 0.7+ solo con spam claro (apuestas, crypto no pedido, SEO spam, sinsentido).
+- No inventes presupuesto ni empresa.
 
 Datos:
 Nombre de pila: ${input.firstName}
@@ -70,7 +75,7 @@ Mensaje (recortado): ${input.message.slice(0, 280)}
 Dominio de correo: ${input.emailDomain}`;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6_000);
+  const timer = setTimeout(() => controller.abort(), 12_000);
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -80,7 +85,7 @@ Dominio de correo: ${input.emailDomain}`;
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 400 },
+        generationConfig: { temperature: 0.75, maxOutputTokens: 500 },
       }),
       signal: controller.signal,
     });

@@ -7,6 +7,7 @@ import { orbitFromTier } from "@/lib/brand.config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function json(data: unknown, status = 200, extra?: HeadersInit) {
   return new Response(JSON.stringify(data), {
@@ -107,7 +108,41 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await ingestLead(payload);
+    let result: {
+      leadId: string;
+      tier: "A" | "B" | "C";
+      bookingUrl: string | null;
+      duplicate: boolean;
+      emailSent: boolean;
+    };
+
+    if (env.BACKEND_URL) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 9_000);
+      try {
+        const upstream = await fetch(`${env.BACKEND_URL.replace(/\/$/, "")}/api/leads`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(env.BACKEND_SECRET ? { "X-Backend-Secret": env.BACKEND_SECRET } : {}),
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        const data = (await upstream.json()) as typeof result & { ok?: boolean; error?: string };
+        if (!upstream.ok) {
+          throw new Error(data.error || "backend_error");
+        }
+        result = data;
+      } catch (err) {
+        console.error("Render no respondió a tiempo; ingest local", err);
+        result = await ingestLead(payload);
+      } finally {
+        clearTimeout(timer);
+      }
+    } else {
+      result = await ingestLead(payload);
+    }
     try {
       await markSubmission(parsed.data.submissionId, {
         status: "sent",

@@ -86,6 +86,7 @@ export async function ingestLead(
       const mail = await sendLeadEmails({
         to: payload.emailNormalized,
         firstName,
+        company: payload.company,
         bookingUrl,
         intro: ai.intro,
         internal: {

@@ -21,6 +21,8 @@ const schema = z.object({
   CAL_EVENT_B: z.string().optional(),
   CAL_BOOKING_A: z.string().optional(),
   CAL_BOOKING_B: z.string().optional(),
+  BACKEND_URL: z.string().url().optional().or(z.literal("")),
+  BACKEND_SECRET: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof schema>;
@@ -47,6 +49,8 @@ export function getServerEnv(): ServerEnv {
     CAL_EVENT_B: process.env.CAL_EVENT_B,
     CAL_BOOKING_A: process.env.CAL_BOOKING_A,
     CAL_BOOKING_B: process.env.CAL_BOOKING_B,
+    BACKEND_URL: process.env.BACKEND_URL,
+    BACKEND_SECRET: process.env.BACKEND_SECRET,
   });
   if (!parsed.success) {
     const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
